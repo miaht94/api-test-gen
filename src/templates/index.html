@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APITestGen - Generate API Test Cases</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        
+        .upload-section {
+            margin-bottom: 30px;
+        }
+        
+        .upload-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background-color: #f0f2ff;
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        
+        .upload-subtext {
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .text-input-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #eee;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            font-family: monospace;
+        }
+        
+        .form-group textarea {
+            height: 200px;
+            resize: vertical;
+        }
+        
+        .options-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #eee;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .checkbox-group label {
+            color: #333;
+            font-weight: normal;
+        }
+        
+        .api-key-group {
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .api-key-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background-color: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success {
+            background-color: #efe;
+            color: #363;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .spec-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .spec-info h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .spec-info p {
+            margin-bottom: 8px;
+        }
+        
+        .generate-section {
+            margin-top: 30px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 APITestGen</h1>
+            <p>Generate comprehensive API test cases from OpenAPI/Swagger specifications</p>
+        </div>
+        
+        <div class="error" id="errorMessage"></div>
+        <div class="success" id="successMessage"></div>
+        
+        <!-- File Upload Section -->
+        <div class="upload-section">
+            <h2>📁 Upload OpenAPI Specification</h2>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">Click to select file or drag and drop</div>
+                <div class="upload-subtext">Supports JSON and YAML files</div>
+            </div>
+            <input type="file" id="fileInput" accept=".json,.yaml,.yml">
+        </div>
+        
+        <!-- Text Input Section -->
+        <div class="text-input-section">
+            <h2>📝 Or Paste Specification Content</h2>
+            <div class="form-group">
+                <label for="specType">Specification Format:</label>
+                <select id="specType">
+                    <option value="json">JSON</option>
+                    <option value="yaml">YAML</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="specContent">Specification Content:</label>
+                <textarea id="specContent" placeholder="Paste your OpenAPI specification here..."></textarea>
+            </div>
+            <button type="button" class="btn" onclick="uploadText()">Parse Specification</button>
+        </div>
+        
+        <!-- Options Section -->
+        <div class="options-section">
+            <h2>⚙️ Generation Options</h2>
+            <div class="checkbox-group">
+                <input type="checkbox" id="useAI">
+                <label for="useAI">Use AI-enhanced test generation (requires OpenAI API key)</label>
+            </div>
+            <div class="api-key-group" id="apiKeyGroup">
+                <input type="password" id="openaiKey" placeholder="Enter your OpenAI API key">
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="includeEdgeCases" checked>
+                <label for="includeEdgeCases">Generate edge case test scenarios</label>
+            </div>
+        </div>
+        
+        <!-- Specification Info -->
+        <div class="spec-info" id="specInfo">
+            <h3>📋 Specification Information</h3>
+            <div id="specDetails"></div>
+        </div>
+        
+        <!-- Generate Section -->
+        <div class="generate-section" id="generateSection">
+            <button type="button" class="btn" onclick="generateTests()" id="generateBtn">
+                🧪 Generate Test Cases
+            </button>
+        </div>
+        
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const useAICheckbox = document.getElementById('useAI');
+        const apiKeyGroup = document.getElementById('apiKeyGroup');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        useAICheckbox.addEventListener('change', toggleApiKeyInput);
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+        
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+        
+        function handleFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            showLoading();
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    currentSessionId = data.session_id;
+                    showSuccess('File uploaded and parsed successfully!');
+                    displaySpecInfo(data.spec_info, data.endpoints_count);
+                    showGenerateSection();
+                } else {
+                    showError(data.error || 'Failed to upload file');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showError('Error uploading file: ' + error.message);
+            });
+        }
+        
+        function uploadText() {
+            const content = document.getElementById('specContent').value.trim();
+            const type = document.getElementById('specType').value;
+            
+            if (!content) {
+                showError('Please paste specification content');
+                return;
+            }
+            
+            showLoading();
+            
+            fetch('/upload_text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    content: content,
+                    type: type
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    currentSessionId = data.session_id;
+                    showSuccess('Specification parsed successfully!');
+                    displaySpecInfo(data.spec_info, data.endpoints_count);
+                    showGenerateSection();
+                } else {
+                    showError(data.error || 'Failed to parse specification');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showError('Error parsing specification: ' + error.message);
+            });
+        }
+        
+        function generateTests() {
+            if (!currentSessionId) {
+                showError('Please upload a specification first');
+                return;
+            }
+            
+            const useAI = document.getElementById('useAI').checked;
+            const includeEdgeCases = document.getElementById('includeEdgeCases').checked;
+            const openaiKey = document.getElementById('openaiKey').value;
+            
+            if (useAI && !openaiKey) {
+                showError('Please provide an OpenAI API key for AI-enhanced generation');
+                return;
+            }
+            
+            const params = new URLSearchParams({
+                use_ai: useAI,
+                include_edge_cases: includeEdgeCases,
+                openai_api_key: openaiKey
+            });
+            
+            showLoading();
+            
+            fetch(`/generate/${currentSessionId}?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    showSuccess(`Generated ${data.test_cases_count} test cases successfully!`);
+                    // Redirect to preview page
+                    window.location.href = `/preview/${currentSessionId}`;
+                } else {
+                    showError(data.error || 'Failed to generate test cases');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showError('Error generating test cases: ' + error.message);
+            });
+        }
+        
+        function toggleApiKeyInput() {
+            const useAI = document.getElementById('useAI').checked;
+            const apiKeyGroup = document.getElementById('apiKeyGroup');
+            apiKeyGroup.style.display = useAI ? 'block' : 'none';
+        }
+        
+        function displaySpecInfo(specInfo, endpointsCount) {
+            const specDetails = document.getElementById('specDetails');
+            specDetails.innerHTML = `
+                <p><strong>Title:</strong> ${specInfo.title}</p>
+                <p><strong>Version:</strong> ${specInfo.version}</p>
+                <p><strong>Base URL:</strong> ${specInfo.base_url}</p>
+                <p><strong>Total Endpoints:</strong> ${endpointsCount}</p>
+                <p><strong>OpenAPI Version:</strong> ${specInfo.openapi_version}</p>
+            `;
+            document.getElementById('specInfo').style.display = 'block';
+        }
+        
+        function showGenerateSection() {
+            document.getElementById('generateSection').style.display = 'block';
+        }
+        
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            hideSuccess();
+        }
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            hideError();
+        }
+        
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+        
+        function hideSuccess() {
+            document.getElementById('successMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
