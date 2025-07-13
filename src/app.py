@@ -1,6 +1,7 @@
 """
 Flask web application for APITestGen.
 Provides a web interface for uploading OpenAPI specs and generating test cases.
+Extended with RAG functionality for document-based context generation.
 """
 
 import os
@@ -14,6 +15,8 @@ from .openapi_parser import OpenAPIParser
 from .test_generator import TestCaseGenerator
 from .edge_case_generator import EdgeCaseGenerator
 from .exporters import TestCaseExporter
+from .rag import RAGManager
+from .rag.chat import ChatManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,6 +28,10 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-producti
 
 # Global storage for session data (in production, use proper session storage)
 sessions = {}
+
+# Initialize RAG manager
+rag_manager = RAGManager()
+chat_manager = ChatManager(rag_manager)
 
 
 @app.route('/')
@@ -250,6 +257,162 @@ def preview_tests(session_id):
     except Exception as e:
         logger.error(f"Error previewing test cases: {str(e)}")
         return jsonify({'error': f'Error previewing test cases: {str(e)}'}), 500
+
+
+# RAG and Document Management Endpoints
+
+@app.route('/api/upload-documents', methods=['POST'])
+def upload_documents():
+    """Upload documents for RAG processing."""
+    try:
+        if not request.files:
+            return jsonify({'error': 'No files uploaded'}), 400
+        
+        doc_type = request.form.get('type', 'document')
+        uploaded_docs = []
+        
+        for key in request.files:
+            file = request.files[key]
+            if file.filename:
+                filename = secure_filename(file.filename)
+                content = file.read().decode('utf-8', errors='ignore')
+                file_extension = filename.split('.')[-1] if '.' in filename else ''
+                
+                # Add document to RAG manager
+                doc_id = rag_manager.add_document(
+                    name=filename,
+                    content=content,
+                    doc_type=doc_type,
+                    file_extension=file_extension
+                )
+                
+                uploaded_docs.append({
+                    'id': doc_id,
+                    'name': filename,
+                    'type': doc_type,
+                    'size': len(content)
+                })
+        
+        return jsonify({
+            'success': True,
+            'documents': uploaded_docs,
+            'count': len(uploaded_docs)
+        })
+    
+    except Exception as e:
+        logger.error(f"Error uploading documents: {str(e)}")
+        return jsonify({'error': f'Error uploading documents: {str(e)}'}), 500
+
+
+@app.route('/api/documents', methods=['GET'])
+def get_documents():
+    """Get all uploaded documents."""
+    try:
+        documents = rag_manager.get_documents()
+        return jsonify(documents)
+    except Exception as e:
+        logger.error(f"Error getting documents: {str(e)}")
+        return jsonify({'error': f'Error retrieving documents: {str(e)}'}), 500
+
+
+@app.route('/api/documents/<doc_id>', methods=['DELETE'])
+def delete_document(doc_id):
+    """Delete a document."""
+    try:
+        success = rag_manager.delete_document(doc_id)
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Failed to delete document'}), 500
+    except Exception as e:
+        logger.error(f"Error deleting document: {str(e)}")
+        return jsonify({'error': f'Error deleting document: {str(e)}'}), 500
+
+
+@app.route('/api/process-documents', methods=['POST'])
+def process_documents():
+    """Process documents into vector database."""
+    try:
+        results = rag_manager.process_documents()
+        return jsonify({
+            'success': True,
+            'processed_count': results['processed_count'],
+            'failed_count': results['failed_count'],
+            'errors': results['errors']
+        })
+    except Exception as e:
+        logger.error(f"Error processing documents: {str(e)}")
+        return jsonify({'error': f'Error processing documents: {str(e)}'}), 500
+
+
+@app.route('/api/documents/status', methods=['GET'])
+def get_documents_status():
+    """Get RAG system status."""
+    try:
+        status = rag_manager.get_status()
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Error getting status: {str(e)}")
+        return jsonify({'error': f'Error getting status: {str(e)}'}), 500
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """Chat endpoint for AI-powered test generation."""
+    try:
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({'error': 'No message provided'}), 400
+        
+        message = data['message']
+        context = data.get('context', 'test_generation')
+        
+        # Generate AI response
+        response = chat_manager.generate_response(message, context)
+        
+        return jsonify(response)
+    
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}")
+        return jsonify({'error': f'Error generating response: {str(e)}'}), 500
+
+
+@app.route('/api/export-chat-tests', methods=['POST'])
+def export_chat_tests():
+    """Export test cases generated from chat."""
+    try:
+        data = request.get_json()
+        if not data or 'test_cases' not in data:
+            return jsonify({'error': 'No test cases provided'}), 400
+        
+        test_cases = data['test_cases']
+        format_type = data.get('format', 'json')
+        
+        # Create exporter
+        exporter = TestCaseExporter()
+        
+        # Mock spec info for chat-generated tests
+        spec_info = {
+            'title': 'Chat Generated Tests',
+            'version': '1.0.0',
+            'description': 'Test cases generated via AI chat'
+        }
+        
+        # Export in the requested format
+        if format_type == 'json':
+            filepath = exporter.export_json(test_cases, spec_info)
+        elif format_type == 'python':
+            filepath = exporter.export_python_test_script(test_cases, spec_info)
+        elif format_type == 'shell':
+            filepath = exporter.export_shell_script(test_cases, spec_info)
+        else:
+            return jsonify({'error': 'Unsupported export format'}), 400
+        
+        return send_file(filepath, as_attachment=True, download_name=os.path.basename(filepath))
+    
+    except Exception as e:
+        logger.error(f"Error exporting chat tests: {str(e)}")
+        return jsonify({'error': f'Error exporting tests: {str(e)}'}), 500
 
 
 @app.route('/health')
