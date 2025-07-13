@@ -8,6 +8,7 @@ import os
 import json
 import tempfile
 from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import logging
 
@@ -22,6 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
